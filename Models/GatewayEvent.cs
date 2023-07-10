@@ -1,26 +1,59 @@
-﻿using System;
+﻿using DBot.Models;
+using DBot.Models.EventData;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace DBot.Models
 {
-    internal abstract class GatewayEventBase
+    public static class GatewayCode
     {
-        [JsonPropertyName("op")]
-        public int OpCode { get; set; }
+        private readonly static Dictionary<int, OpCodes> codesList = new();
+        private readonly static Dictionary<string, Dispatch> dispatchList = new();
 
-        [JsonPropertyName("s")]
-        public int? SeqNumber { get; set; }
-
-        [JsonPropertyName("t")]
-        public string? EventName { get; set; }
-
-        public enum OpCodes
+        static GatewayCode()
         {
-            Ready = 0,
+            var CodeVals = Enum.GetValues<OpCodes>();
+            var DispVals = Enum.GetValues<Dispatch>();
+
+            for (int i = 0; i < CodeVals.Length; i++)
+            {
+                codesList.Add((int)CodeVals[i], CodeVals[i]);
+            }
+            for (int i = 0; i < DispVals.Length; i++)
+            {
+                dispatchList.Add(DispVals[i].ToString(), DispVals[i]);
+            }
+        }
+
+        public static OpCodes GetOpCode(int code)
+        {
+            if (codesList.TryGetValue(code, out OpCodes result))
+            {
+                return result;
+            }
+            return OpCodes.NoResponse;
+        }
+
+        public static Dispatch GetDispatch(string name)
+        {
+            if (dispatchList.TryGetValue(name.ToUpperInvariant(), out Dispatch result))
+            {
+                return result;
+            }
+            return Dispatch.UNKNOWN;
+        }
+
+        public enum OpCodes : int
+        {
+            Ready = -10,
+            NoResponse = -1,
+            Dispatch = 0,
             Heartbeat = 1,
             Identity = 2,
             Resume = 6,
@@ -29,6 +62,32 @@ namespace DBot.Models
             Hello = 10,
             HeartbeatAck = 11
         }
+
+        public enum Dispatch : int
+        {
+            UNKNOWN = -1,
+            READY = 0,
+            MESSAGE_CREATE = 1
+        }
+    }
+
+    public abstract class GatewayEventBase
+    {
+        public GatewayEventBase(int opCode, int? seqNumber, string? eventName) 
+        {
+            OpCode = opCode;
+            SeqNumber = seqNumber;
+            EventName = eventName;
+        }
+
+        [JsonPropertyName("op")]
+        public int OpCode { get; set; }
+
+        [JsonPropertyName("s")]
+        public int? SeqNumber { get; set; }
+
+        [JsonPropertyName("t")]
+        public string? EventName { get; set; }
 
         [Flags]
         public enum Intents
@@ -156,18 +215,44 @@ namespace DBot.Models
         }
     }
 
-    internal sealed class GatewayEvent<PayloadType> : GatewayEventBase
+    internal sealed class GatewayEvent<PayloadType> : GatewayEventBase where PayloadType : class, EventDataBase
     {
-        public GatewayEvent(OpCodes opcode)
+        [JsonConstructor]
+        public GatewayEvent(int opCode, int? seqNumber, string? eventName, PayloadType? payload) : base(opCode, seqNumber, eventName)
         {
-            this.OpCode = (int)opcode;
+            this.Payload = payload;
         }
-        public GatewayEvent(OpCodes opcode, PayloadType payload) : this(opcode)
+        public GatewayEvent(GatewayCode.OpCodes opCode) : base((int)opCode, null, null)
+        {   }
+        public GatewayEvent(GatewayCode.OpCodes opCode, PayloadType? payload) : this((int)opCode, null, null, payload)
+        {   }
+
+        [JsonPropertyName("d")]
+        public PayloadType? Payload { get; set; }
+    }
+
+    internal sealed class GatewayHeartbeatEvent : GatewayEventBase
+    {
+        public GatewayHeartbeatEvent() : base((int)GatewayCode.OpCodes.Heartbeat, null, null)
+        {   }
+        public GatewayHeartbeatEvent(int? payload) : this()
         {
             this.Payload = payload;
         }
 
         [JsonPropertyName("d")]
-        public PayloadType? Payload { get; set; }
+        public int? Payload { get; set; }
     }
+
+    internal sealed class GatewayNoRespEvent : GatewayEventBase 
+    {
+        [JsonConstructor]
+        public GatewayNoRespEvent(int opCode, int? seqNumber, string? eventName) : base(opCode, seqNumber, eventName)
+        {   }
+        public GatewayNoRespEvent(GatewayCode.OpCodes input = GatewayCode.OpCodes.NoResponse) : base((int)input, null, null)
+        {   }
+    }
+
+    internal class ReconnectException : Exception
+    {   }
 }

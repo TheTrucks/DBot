@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DBot.Models.EventData
 {
-    internal sealed class Identity
+    internal sealed class Identity : EventDataBase
     {
         public Identity(string token, int intents, string os, string browser, string device) 
         {
@@ -17,7 +17,7 @@ namespace DBot.Models.EventData
         }
 
         [JsonPropertyName("token")]
-        string Token { get; set; }
+        public string Token { get; set; }
 
         [JsonPropertyName("intents")]
         public int Intents { get; set; }

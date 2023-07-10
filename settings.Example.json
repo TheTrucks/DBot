@@ -1,0 +1,9 @@
+{
+  "ConnectionOptions": {
+    "HttpAddress": "wss://gateway.discord.gg"
+  },
+  "ProcessingOptions": {
+    "Token": "qwertyuiop123456789"
+  },
+  "OpenAIBaseAPI": "https://poiuytrewq"
+}

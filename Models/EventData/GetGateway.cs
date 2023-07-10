@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace DBot.Models.EventData
 {
-    internal class Hello : EventDataBase
+    public sealed class GetGateway
     {
-        [JsonPropertyName("heartbeat_interval")]
-        public int HeartbeatInterval { get; set; }
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
     }
 }
