@@ -1,6 +1,8 @@
 {
-  "ConnectionOptions": {
-    "HttpAddress": "wss://gateway.discord.gg"
+  "AppOptions": {
+    "BaseURL": "https://discord.com/api",
+    "WSSAddress": "wss://gateway.discord.gg",
+    "AppID": "1234567890"
   },
   "ProcessingOptions": {
     "Token": "qwertyuiop123456789"

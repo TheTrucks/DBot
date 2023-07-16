@@ -13,19 +13,16 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using DBot.Models.EventData;
 using DBot.Processing;
+using DBot.Models.Options;
 
-namespace DBot
+namespace DBot.Services
 {
-    internal sealed class ConnectionOptions
-    {
-        public required string HttpAddress { get; set; }
-    }
-
     internal sealed class ConnectionManager : IHostedService
     {
         private ClientWebSocket CWS = new ClientWebSocket();
-        private ConnectionOptions _opts;
+        private AppOptions _opts;
         private EventProcessorManager _proc;
+        private SenderService _sender;
         ILogger<ConnectionManager> _logger;
 
         private CancellationTokenSource _cts = new CancellationTokenSource();
@@ -34,13 +31,14 @@ namespace DBot
         private PeriodicTimer? _heartbeatTimer;
         private string? WSSAddress;
 
-        public ConnectionManager(IOptions<ConnectionOptions> opts, ILogger<ConnectionManager> logger, EventProcessorManager proc)
+        public ConnectionManager(IOptions<AppOptions> opts, ILogger<ConnectionManager> logger, EventProcessorManager proc, SenderService sender)
         {
             _opts = opts.Value;
             _proc = proc;
             _logger = logger;
+            _sender = sender;
 
-            WSSAddress = _opts.HttpAddress;
+            WSSAddress = _opts.WSSAddress;
         }
 
         public Task StartAsync(CancellationToken _token)
@@ -84,7 +82,7 @@ namespace DBot
         private async Task Heartbeat()
         {
             var _token = _cts.Token;
-            while (!_token.IsCancellationRequested) 
+            while (!_token.IsCancellationRequested)
             {
                 if (_heartbeatTimer is null)
                 {
@@ -95,8 +93,8 @@ namespace DBot
                 {
                     await _heartbeatTimer.WaitForNextTickAsync(_token);
                     var heartbeat = _proc.CreateHeartbeat();
-                    _logger.LogTrace("Heartbeat out, seq: {0}", heartbeat.Payload.HasValue ? heartbeat.Payload.Value : "null");
-                    await SendAnswer(heartbeat, _token);
+                    _logger.LogTrace("Heartbeat out, seq: {seq}", heartbeat.Payload.HasValue ? heartbeat.Payload.Value : "null");
+                    await _sender.SendAnswer(CWS, heartbeat, _token);
                     _logger.LogDebug("Heartbeaten");
                 }
             }
@@ -128,31 +126,15 @@ namespace DBot
                         result = await CWS.ReceiveAsync(EventData.Memory, _token);
                         DataSize += result.Count;
                     }
-                    _logger.LogTrace("Data received: {0}KB", (double)result.Count / 1024);
+                    _logger.LogTrace("Data received: {size}KB", (double)result.Count / 1024);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Data receive error with memSize: {0}", memSize);
+                _logger.LogError(ex, "Data receive error with memSize: {size}", memSize);
             }
-            
-            return (EventData, DataSize);
-        }
 
-        private async Task SendAnswer(GatewayEventBase Answer, CancellationToken _token)
-        {
-            _logger.LogTrace("Sending answer of type {0}", GatewayCode.GetOpCode(Answer.OpCode).ToString());
-            using (var DataMS = new MemoryStream()) 
-            {
-                JsonSerializer.Serialize(DataMS, Answer, Answer.GetType());
-                using (var DataMemory = MemoryPool<byte>.Shared.Rent((int)DataMS.Length))
-                {
-                    DataMS.Seek(0, SeekOrigin.Begin);
-                    int read = await DataMS.ReadAsync(DataMemory.Memory, _token);
-                    await CWS.SendAsync(DataMemory.Memory.Slice(0, read), WebSocketMessageType.Binary, true, _token);
-                }
-            }
-            _logger.LogDebug("Answer sent");
+            return (EventData, DataSize);
         }
 
         private void InitHeartbeat(int intervalms)
@@ -175,13 +157,14 @@ namespace DBot
                     var AnswerData = await ReceiveEventData(_token);
                     using (AnswerData.Data)
                     {
-                        var Answer = _proc.ProcessEvent(AnswerData.Data, AnswerData.DataSize);
+                        var AnswerMem = AnswerData.Data.Memory;
+                        var Answer = _proc.ProcessEvent(in AnswerMem, in AnswerData.DataSize);
 
                         switch (GatewayCode.GetOpCode(Answer.OpCode))
                         {
                             case GatewayCode.OpCodes.Hello:
                                 InitHeartbeat(((GatewayEvent<Hello>)Answer).Payload!.HeartbeatInterval);
-                                await SendAnswer(_proc.CreateIdentity(), _token);
+                                await _sender.SendAnswer(CWS, _proc.CreateIdentity(), _token);
                                 break;
                             case GatewayCode.OpCodes.HeartbeatAck:
                                 //ResetReconnectTimer();
@@ -192,8 +175,11 @@ namespace DBot
                                 throw new Exception("Session is considered invalid");
                             case GatewayCode.OpCodes.NoResponse:
                                 break;
+                            case GatewayCode.OpCodes.Dispatch:
+                                await _sender.SendWebhook(Answer, _token);
+                                break;
                             default:
-                                await SendAnswer(Answer, _token);
+                                await _sender.SendAnswer(CWS, Answer, _token);
                                 break;
                         }
                     }

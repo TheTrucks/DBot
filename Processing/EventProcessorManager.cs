@@ -13,24 +13,23 @@ using Intents = DBot.Models.GatewayEventBase.Intents;
 using EventCodes = DBot.Models.GatewayCode.OpCodes;
 using DispatchCodes = DBot.Models.GatewayCode.Dispatch;
 using DBot.Processing.Processors;
+using DBot.Models.Options;
 
 namespace DBot.Processing
 {
-    internal sealed class EventProcessorOptions
-    {
-        public required string Token { get; set; }
-    }
     internal sealed class EventProcessorManager
     {
         private readonly EventProcessorOptions _options;
         private readonly SystemEventsProcessor _sysproc;
+        private readonly DispatchEventsProcessor _dispproc;
         private readonly ILogger<EventProcessorManager> _logger;
 
-        public EventProcessorManager(IOptions<EventProcessorOptions> opts, SystemEventsProcessor sysproc, ILogger<EventProcessorManager> logger)
+        public EventProcessorManager(IOptions<EventProcessorOptions> opts, ILogger<EventProcessorManager> logger, SystemEventsProcessor sysproc, DispatchEventsProcessor dispproc)
         {
             _options = opts.Value;
             _sysproc = sysproc;
             _logger = logger;
+            _dispproc = dispproc;
         }
 
         public (Uri resumeGateway, string sessionId)? GetReconnectData(bool clear)
@@ -38,30 +37,31 @@ namespace DBot.Processing
             return _sysproc.GetReconnectData(clear);
         }
 
-        public GatewayEventBase ProcessEvent(IMemoryOwner<byte> data, in int dataSize)
+        public GatewayEventBase ProcessEvent(in Memory<byte> data, in int dataSize)
         {
             _logger.LogDebug("Processing an event");
-            var EventData = InitialProcess(data, dataSize);
+            var EventData = InitialProcess(in data, in dataSize);
             if (EventData is null)
                 return new GatewayNoRespEvent(EventCodes.NoResponse);
             _logger.LogTrace("Processing event type is {event}", EventData.OpCode);
 
             if (EventData.OpCode == (int)EventCodes.Dispatch)
-                return ProcessDispatch(data, dataSize, EventData.EventName);
+                return ProcessDispatch(in data, in dataSize, EventData.EventName);
             else
-                return _sysproc.ProcessSystemEvent(data, dataSize, GatewayCode.GetOpCode(EventData.OpCode), EventData.SeqNumber);
-            
+                return _sysproc.ProcessSystemEvent(in data, in dataSize, GatewayCode.GetOpCode(EventData.OpCode), EventData.SeqNumber);
         }
 
-        private GatewayEventBase ProcessDispatch(IMemoryOwner<byte> data, in int dataSize, string? eventName)
+        private GatewayEventBase ProcessDispatch(in Memory<byte> data, in int dataSize, string? eventName)
         {
             if (eventName is null)
                 return new GatewayNoRespEvent(EventCodes.NoResponse);
 
-            if (GatewayCode.GetDispatch(eventName) == DispatchCodes.READY)
-                return _sysproc.ProcessSystemEvent(data, dataSize, EventCodes.Ready, null);
+            var dispCode = GatewayCode.GetDispatch(eventName);
 
-            return new GatewayNoRespEvent(EventCodes.NoResponse);
+            if (dispCode == DispatchCodes.READY)
+                return _sysproc.ProcessSystemEvent(in data, in dataSize, EventCodes.Ready, null);
+
+            return _dispproc.ProcessDispatchEvent(in data, in dataSize, dispCode);
         }
 
         public GatewayHeartbeatEvent CreateHeartbeat()
@@ -83,13 +83,13 @@ namespace DBot.Processing
                     "DBot"
                  )
             );
-        }        
+        }
 
-        private GatewayNoRespEvent? InitialProcess(IMemoryOwner<byte> data, in int dataSize)
+        private GatewayNoRespEvent? InitialProcess(in Memory<byte> data, in int dataSize)
         {
             try
             {
-                var dataSelect = data.Memory.Span.Slice(0, dataSize);
+                var dataSelect = data.Span.Slice(0, dataSize);
                 var gatewayEvent = JsonSerializer.Deserialize<GatewayNoRespEvent>(dataSelect);
                 if (gatewayEvent is null)
                     throw new Exception("Unknown error while retrieving gateway event code");

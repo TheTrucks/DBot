@@ -1,5 +1,7 @@
-﻿using DBot.Processing;
+﻿using DBot.Models.Options;
+using DBot.Processing;
 using DBot.Processing.Processors;
+using DBot.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,6 +24,7 @@ namespace DBot
                 opts
                     .ClearProviders()
                     .AddConsole()
+                    .AddFilter("Microsoft.Extensions.Http", LogLevel.Error)
                     .SetMinimumLevel(LogLevel.Trace));
             var host = builder.Build();
 
@@ -30,17 +33,17 @@ namespace DBot
 
         private static void ConfigureServices(IServiceCollection services, IConfiguration config)
         {
-            var OAI_API = config.GetValue<string>("OpenAIBaseAPI");
-            if (OAI_API is null)
-                throw new Exception("OpenAIBaseAPI is not configured");
-            services.AddHttpClient("SharedHttpClient", opts =>
-                opts.BaseAddress = new Uri(OAI_API));
+            services.AddHttpClient("SharedHttpClient");
             services.RemoveAll<IHttpMessageHandlerBuilderFilter>(); // remove annoying http client logging
-
-            services.Configure<ConnectionOptions>(config.GetRequiredSection("ConnectionOptions"));
+            services.Configure<AppOptions>(config.GetRequiredSection("AppOptions"));
             services.Configure<EventProcessorOptions>(config.GetRequiredSection("ProcessingOptions"));
+
             services.AddSingleton<EventProcessorManager>();
             services.AddSingleton<SystemEventsProcessor>();
+            services.AddSingleton<DispatchEventsProcessor>();
+            services.AddSingleton<InteractionsProcessor>();
+            services.AddSingleton<GlobalCommandService>();
+            services.AddSingleton<SenderService>();
 
             services.AddHostedService<ConnectionManager>();
         }

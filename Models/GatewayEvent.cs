@@ -1,5 +1,6 @@
 ﻿using DBot.Models;
 using DBot.Models.EventData;
+using DBot.Models.HttpModels;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -67,7 +68,8 @@ namespace DBot.Models
         {
             UNKNOWN = -1,
             READY = 0,
-            MESSAGE_CREATE = 1
+            MESSAGE_CREATE = 1,
+            INTERACTION_CREATE = 2
         }
     }
 
@@ -215,7 +217,8 @@ namespace DBot.Models
         }
     }
 
-    internal sealed class GatewayEvent<PayloadType> : GatewayEventBase where PayloadType : class, EventDataBase
+    internal sealed class GatewayEvent<PayloadType> : GatewayEventBase 
+        where PayloadType : class, EventDataBase
     {
         [JsonConstructor]
         public GatewayEvent(int opCode, int? seqNumber, string? eventName, PayloadType? payload) : base(opCode, seqNumber, eventName)
@@ -229,6 +232,17 @@ namespace DBot.Models
 
         [JsonPropertyName("d")]
         public PayloadType? Payload { get; set; }
+    }
+
+    internal sealed class GatewayDispatch<PayloadType> : GatewayEventBase
+        where PayloadType : HttpModelBase
+    {
+        public GatewayDispatch(PayloadType payload) : base((int)GatewayCode.OpCodes.Dispatch, null, null)
+        {
+            Payload = payload;
+        }
+
+        public PayloadType Payload { get; set; }
     }
 
     internal sealed class GatewayHeartbeatEvent : GatewayEventBase
