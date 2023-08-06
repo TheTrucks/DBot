@@ -17,6 +17,7 @@ namespace DBot
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("settings.json")
+                .AddEnvironmentVariables()
                 .Build();
             var builder = Host.CreateDefaultBuilder();
             builder.ConfigureServices(servs => ConfigureServices(servs, config));

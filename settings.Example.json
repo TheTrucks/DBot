@@ -1,11 +1,11 @@
 {
   "AppOptions": {
-    "BaseURL": "https://discord.com/api",
+    "BaseURL": "https://discord.com/api/v10/",
     "WSSAddress": "wss://gateway.discord.gg",
-    "AppID": "1234567890"
+    "AppID": "123454321",
+    "HttpCatsBaseURL": "https://http.cat/"
   },
   "ProcessingOptions": {
-    "Token": "qwertyuiop123456789"
-  },
-  "OpenAIBaseAPI": "https://poiuytrewq"
+    "Token": "discord-bot-token"
+  }
 }
