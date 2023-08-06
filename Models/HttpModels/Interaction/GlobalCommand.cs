@@ -10,7 +10,7 @@ namespace DBot.Models.HttpModels.Interaction
 {
     internal class GlobalCommands<InteractionData> : HttpModelBase
     {
-        public GlobalCommands(GlobalCommand<InteractionData>[] payload) : base(HttpMethod.Post, "applications/{0}/commands", 1)
+        public GlobalCommands(GlobalCommand<InteractionData>[] payload) : base(HttpMethod.Put, "applications/{0}/commands", 1)
         {
             Payload = payload;
         }

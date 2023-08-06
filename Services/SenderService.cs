@@ -38,7 +38,7 @@ namespace DBot.Services
 
             _codeFuncLinks.Add(typeof(GatewayDispatch<Message>), SendReplyMessage);
             _codeFuncLinks.Add(typeof(GatewayDispatch<InteractionResponse<InteractionMessage>>), SendInteractionResp);
-            _codeFuncLinks.Add(typeof(GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>), RegisterGlobalCommands);
+            _codeFuncLinks.Add(typeof(GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>), UpdateGlobalCommands);
             _codeFuncLinks.Add(typeof(GatewayDispatch<PlainCommand>), SendPlainMessage);
         }
 
@@ -118,22 +118,26 @@ namespace DBot.Services
             }
         }
 
-        private async Task RegisterGlobalCommands(GatewayEventBase DataWrapped, CancellationToken _token)
+        private async Task UpdateGlobalCommands(GatewayEventBase DataWrapped, CancellationToken _token)
         {
-            var Data = ((GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>)DataWrapped).Payload;
+            var Data = DataWrapped as GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>;
+            if (Data is null)
+                Data = new GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>(new GlobalCommands<Interaction.AppCommandInteractionOption>(Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>()));
 
-            foreach (var Cmd in Data.Payload)
+            var currentCommands = await RetrieveCurrentCommands(_token);
+
+            if (!Interaction.AppCommandInteractionOption.Comparer.Equals(Data.Payload.Payload, currentCommands))
             {
                 using (var SendMessage = new HttpRequestMessage(
-                    Data.Method,
-                    Data.GetUri(_opts.AppID)))
+                    Data.Payload.Method,
+                    Data.Payload.GetUri(_opts.AppID)))
                 {
                     using (var _httpClient = _httpFactory.CreateClient("SharedHttpClient"))
                     {
                         _httpClient.BaseAddress = new Uri(_opts.BaseURL);
 
                         SendMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", BotToken);
-                        SendMessage.Content = JsonContent.Create(Cmd);
+                        SendMessage.Content = JsonContent.Create(Data.Payload.Payload);
 
                         var resp = await _httpClient.SendAsync(SendMessage);
                         if (!resp.IsSuccessStatusCode)
@@ -145,9 +149,50 @@ namespace DBot.Services
             }
         }
 
+        private async Task<GlobalCommand<Interaction.AppCommandInteractionOption>[]> RetrieveCurrentCommands(CancellationToken _token)
+        {
+            using (var SendMessage = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    $"applications/{_opts.AppID}/commands"))
+            {
+                using (var _httpClient = _httpFactory.CreateClient("SharedHttpClient"))
+                {
+                    _httpClient.BaseAddress = new Uri(_opts.BaseURL);
+
+                    SendMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", BotToken);
+
+                    var resp = await _httpClient.SendAsync(SendMessage);
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        LogHttpError(resp);
+                        return Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>();
+                    }
+
+                    return await DeserializeCurrentCommands(resp);
+                }
+            }
+        }
+
+        private async Task<GlobalCommand<Interaction.AppCommandInteractionOption>[]> DeserializeCurrentCommands(HttpResponseMessage resp)
+        {
+            try
+            {
+                using var dataStream = await resp.Content.ReadAsStreamAsync();
+                var cmds = await JsonSerializer.DeserializeAsync<GlobalCommand<Interaction.AppCommandInteractionOption>[]>(dataStream);
+                if (cmds is null)
+                    return Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>();
+                return cmds;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Cannot deserialize current global commands: {msg}", ex.Message);
+                return Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>();
+            }
+        }
+
         private void LogHttpError(HttpResponseMessage message)
         {
-            var dataStream = message.Content.ReadAsStream();
+            using var dataStream = message.Content.ReadAsStream();
             Span<byte> dataBuffer = stackalloc byte[(int)dataStream.Length];
             int read = dataStream.Read(dataBuffer);
             string data = Encoding.UTF8.GetString(dataBuffer.Slice(0, read));

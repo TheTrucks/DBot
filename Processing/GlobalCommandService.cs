@@ -22,6 +22,18 @@ namespace DBot.Processing
         private delegate GatewayEventBase FunctionLink(InteractionCreate<AppCommandInteractionOption> command);
         private readonly Dictionary<string, FunctionLink> _nameFuncLinks = new();
 
+        private readonly static string[] _appeals =
+        {
+            "buddy",
+            "pal",
+            "dude",
+            "amigo",
+            "comrade",
+            "bro",
+            "mate",
+            "friend"
+        };
+
         public GlobalCommandService(ILogger<GlobalCommandService> logger)
         {
             _logger = logger;
@@ -35,7 +47,7 @@ namespace DBot.Processing
                         new AppCommandInteractionOption(
                             "public",
                             AppCommandInteractionOption.AppCommandOptionType.BOOLEAN,
-                            "Allow others to see bot's answer",
+                            "Allow others to see bot's answer in the chat",
                             null,
                             false,
                             null
@@ -56,18 +68,35 @@ namespace DBot.Processing
             return CommandList;
         }
 
-        public GatewayEventBase? CommandInvoke(InteractionCreate<AppCommandInteractionOption> command)
+        public GatewayEventBase CommandInvoke(InteractionCreate<AppCommandInteractionOption> command)
         {
             if (command.Data is null)
             {
                 _logger.LogError("No command data found in message {msg_id}", command.Id);
-                return null;
+                return ErrorResponse(command, "Looks like the command name you sent wasn't correctly received");
             }
 
             if (_nameFuncLinks.TryGetValue(command.Data.Name, out var function))
                 return function(command);
 
-            return null;
+            _logger.LogError("Could not recognize global command");
+            var appeal = Random.Shared.Next(0, _appeals.Length);
+            return ErrorResponse(command, $"Sorry {_appeals[appeal]}, but the command named {command.Data.Name} isn't registered on the backend");
+        }
+
+        private GatewayEventBase ErrorResponse(InteractionCreate<AppCommandInteractionOption> command, string message)
+        {
+            return new GatewayDispatch<InteractionResponse<InteractionMessage>>(
+                    new InteractionResponse<InteractionMessage>(
+                        InteractionResponse<InteractionMessage>.CallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                        new InteractionMessage(
+                            message,
+                            InteractionFlags.EPHEMERAL
+                        ),
+                        command.Id,
+                        command.Token
+                    )
+            );
         }
 
         private GatewayEventBase PingInvoke(InteractionCreate<AppCommandInteractionOption> command)

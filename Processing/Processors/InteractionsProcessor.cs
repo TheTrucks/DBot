@@ -66,13 +66,8 @@ namespace DBot.Processing.Processors
                 _logger.LogError("Unknown deserialization global command error");
                 return NoResponse(in data, in dataSize);
             }
-            var globalCmd = _globalCommands.CommandInvoke(cmdData);
-            if (globalCmd is null)
-            {
-                _logger.LogError("Could not recognize global command");
-                return NoResponse(in data, in dataSize);
-            }
-            return globalCmd;
+
+            return _globalCommands.CommandInvoke(cmdData);
         }
 
         private InteractionCreate<Payload>? DeserializePayload<Payload>(in Memory<byte> data, in int dataSize) where Payload : class, InteractionData

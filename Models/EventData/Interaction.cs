@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DBot.Models.HttpModels.Interaction;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -49,6 +50,8 @@ namespace DBot.Models.EventData
                 Options = options;
             }
 
+            public static GlobalCommandComparer Comparer { get; } = new GlobalCommandComparer();
+
             [JsonPropertyName("id")]
             public string? Id { get; set; }
 
@@ -83,6 +86,85 @@ namespace DBot.Models.EventData
                 MENTIONABLE = 9,
                 NUMBER = 10,
                 ATTACHMENT = 11
+            }
+
+            public class GlobalCommandComparer : EqualityComparer<GlobalCommand<AppCommandInteractionOption>[]>
+            {
+                public override bool Equals(GlobalCommand<AppCommandInteractionOption>[]? x, GlobalCommand<AppCommandInteractionOption>[]? y)
+                {
+                    if (x is null || y is null)
+                        return false;
+
+                    if (x.Length != y.Length)
+                        return false;
+
+                    for (int q = 0; q < x.Length; q++)
+                    {
+                        var first = x[q];
+                        var second = y[q];
+
+                        if (first.Name != second.Name ||
+                            first.Description != second.Description)
+                            return false;
+
+                        if (first.Options is null && second.Options is null)
+                            continue;
+
+                        if ((first.Options is null && second.Options is not null) || (first.Options is not null && second.Options is null))
+                            return false;
+                        
+                        if (first.Options!.Length != second.Options!.Length)
+                            return false;
+
+                        var thisOpts = first.Options!.OrderBy(x => x.Name).ToArray();
+                        var inpOpts = second.Options!.OrderBy(x => x.Name).ToArray();
+
+                        for (int i = 0; i < thisOpts.Length; i++)
+                        {
+                            if (!thisOpts[i].DeepEquals(inpOpts[i]))
+                                return false;
+                        }
+                    }
+                    return true;
+                }
+
+                public override int GetHashCode(GlobalCommand<AppCommandInteractionOption>[] obj)
+                {
+                    return HashCode.Combine(obj.Length);
+                }
+            }
+
+            public bool DeepEquals(object? obj)
+            {
+                if (obj is null)
+                    return false;
+                var appObj = obj as AppCommandInteractionOption;
+                if (appObj is null)
+                    return false;
+
+                if (this.Name != appObj.Name ||
+                    this.Description != appObj.Description)
+                    return false;
+
+                if ((this.Options is not null && appObj.Options is null) || (appObj.Options is not null && this.Options is null))
+                    return false;
+
+                if (this.Options is null && appObj.Options is null)
+                    return true;
+
+                if (this.Options!.Length != appObj.Options!.Length)
+                    return false;
+
+                var thisOpts = this.Options.OrderBy(x => x.Name).ToArray();
+                var inpOpts = appObj.Options.OrderBy(x => x.Name).ToArray();
+
+                for (int i = 0; i < thisOpts.Length; i++)
+                {
+                    if (!thisOpts[i].Equals(inpOpts[i]))
+                        return false;
+                }
+
+                return true;
             }
         }
 
