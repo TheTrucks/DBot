@@ -38,6 +38,8 @@ namespace DBot
             services.Configure<AppOptions>(config.GetRequiredSection("AppOptions"));
             services.Configure<EventProcessorOptions>(config.GetRequiredSection("ProcessingOptions"));
 
+            services.AddSingleton<RequestManager>();
+            services.AddSingleton<ConnectionManager>();
             services.AddSingleton<EventProcessorManager>();
             services.AddSingleton<SystemEventsProcessor>();
             services.AddSingleton<DispatchEventsProcessor>();
@@ -45,7 +47,7 @@ namespace DBot
             services.AddSingleton<GlobalCommandService>();
             services.AddSingleton<SenderService>();
 
-            services.AddHostedService<ConnectionManager>();
+            services.AddHostedService<AppService>();
         }
     }
 }

@@ -37,21 +37,21 @@ namespace DBot.Processing
             return _sysproc.GetReconnectData(clear);
         }
 
-        public GatewayEventBase ProcessEvent(in Memory<byte> data, in int dataSize)
+        public async Task<GatewayEventBase> ProcessEvent(IMemoryOwner<byte> data, int dataSize)
         {
             _logger.LogDebug("Processing an event");
-            var EventData = InitialProcess(in data, in dataSize);
+            var EventData = InitialProcess(data, dataSize);
             if (EventData is null)
                 return new GatewayNoRespEvent(EventCodes.NoResponse);
             _logger.LogTrace("Processing event type is {event}", EventData.OpCode);
 
             if (EventData.OpCode == (int)EventCodes.Dispatch)
-                return ProcessDispatch(in data, in dataSize, EventData.EventName);
+                return await ProcessDispatch(data, dataSize, EventData.EventName);
             else
-                return _sysproc.ProcessSystemEvent(in data, in dataSize, GatewayCode.GetOpCode(EventData.OpCode), EventData.SeqNumber);
+                return await _sysproc.ProcessSystemEvent(data, dataSize, GatewayCode.GetOpCode(EventData.OpCode), EventData.SeqNumber);
         }
 
-        private GatewayEventBase ProcessDispatch(in Memory<byte> data, in int dataSize, string? eventName)
+        private async Task<GatewayEventBase> ProcessDispatch(IMemoryOwner<byte> data, int dataSize, string? eventName)
         {
             if (eventName is null)
                 return new GatewayNoRespEvent(EventCodes.NoResponse);
@@ -59,14 +59,14 @@ namespace DBot.Processing
             var dispCode = GatewayCode.GetDispatch(eventName);
 
             if (dispCode == DispatchCodes.READY)
-                return _sysproc.ProcessSystemEvent(in data, in dataSize, EventCodes.Ready, null);
+                return await _sysproc.ProcessSystemEvent(data, dataSize, EventCodes.Ready, null);
 
-            return _dispproc.ProcessDispatchEvent(in data, in dataSize, dispCode);
+            return await _dispproc.ProcessDispatchEvent(data, dataSize, dispCode);
         }
 
-        public GatewayHeartbeatEvent CreateHeartbeat()
+        public async Task<GatewayHeartbeatEvent> CreateHeartbeat()
         {
-            return _sysproc.CreateHeartbeat();
+            return await _sysproc.CreateHeartbeat();
         }
 
         public GatewayEventBase CreateIdentity()
@@ -85,11 +85,11 @@ namespace DBot.Processing
             );
         }
 
-        private GatewayNoRespEvent? InitialProcess(in Memory<byte> data, in int dataSize)
+        private GatewayNoRespEvent? InitialProcess(IMemoryOwner<byte> data, int dataSize)
         {
             try
             {
-                var dataSelect = data.Span.Slice(0, dataSize);
+                var dataSelect = data.Memory.Span.Slice(0, dataSize);
                 var gatewayEvent = JsonSerializer.Deserialize<GatewayNoRespEvent>(dataSelect);
                 if (gatewayEvent is null)
                     throw new Exception("Unknown error while retrieving gateway event code");

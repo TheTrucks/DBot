@@ -21,7 +21,7 @@ namespace DBot.Processing.Processors
         private readonly AppOptions _opts;
         private readonly InteractionsProcessor _cmdProc;
 
-        private delegate GatewayEventBase FunctionLink(in Memory<byte> data, in int dataSize);
+        private delegate Task<GatewayEventBase> FunctionLink(IMemoryOwner<byte> data, int dataSize);
         private readonly Dictionary<DispatchCodes, FunctionLink> _codeFuncLinks = new();
 
         public DispatchEventsProcessor(IOptions<AppOptions> opts, ILogger<DispatchEventsProcessor> logger, InteractionsProcessor cmdProc)
@@ -48,24 +48,24 @@ namespace DBot.Processing.Processors
             }
         }
 
-        public GatewayEventBase ProcessDispatchEvent(in Memory<byte> data, in int dataSize, DispatchCodes code)
+        public async Task<GatewayEventBase> ProcessDispatchEvent(IMemoryOwner<byte> data, int dataSize, DispatchCodes code)
         {
             if (_codeFuncLinks.ContainsKey(code))
-                return _codeFuncLinks[code](in data, in dataSize);
+                return await _codeFuncLinks[code](data, dataSize);
             else
-                return _codeFuncLinks[DispatchCodes.UNKNOWN](in data, in dataSize);
+                return await _codeFuncLinks[DispatchCodes.UNKNOWN](data, dataSize);
         }
 
-        private GatewayEventBase NoResponse(in Memory<byte> _, in int __)
+        private Task<GatewayEventBase> NoResponse(IMemoryOwner<byte> _, int __)
         {
-            return new GatewayNoRespEvent();
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent());
         }
 
-        private GatewayEventBase ProcessPlainText(in Memory<byte> data, in int dataSize)
+        private async Task<GatewayEventBase> ProcessPlainText(IMemoryOwner<byte> data, int dataSize)
         {
-            var MessageData = DeserializeData<MessageEventCreate>(in data, in dataSize);
+            var MessageData = DeserializeData<MessageEventCreate>(data, dataSize);
             if (MessageData is null || MessageData.Payload is null)
-                return NoResponse(data, dataSize);
+                return await NoResponse(data, dataSize);
 
             if (MessageData.Payload.Mentions.Length == 1 &&
                 MessageData.Payload.Mentions.Any(x => x.Id == _opts.AppID)
@@ -80,12 +80,12 @@ namespace DBot.Processing.Processors
                         )
                     );
 
-            return NoResponse(in data, in dataSize);
+            return await NoResponse(data, dataSize);
         }
 
-        private GatewayEventBase ProcessInteraction(in Memory<byte> data, in int dataSize)
+        private async Task<GatewayEventBase> ProcessInteraction(IMemoryOwner<byte> data, int dataSize)
         {
-            return _cmdProc.ProcessInteraction(in data, in dataSize);
+            return await _cmdProc.ProcessInteraction(data, dataSize);
         }
 
         /// <summary>
@@ -126,11 +126,11 @@ namespace DBot.Processing.Processors
             return false;
         }
 
-        private GatewayEvent<Payload>? DeserializeData<Payload>(in Memory<byte> data, in int dataSize) where Payload : class, EventDataBase
+        private GatewayEvent<Payload>? DeserializeData<Payload>(IMemoryOwner<byte> data, int dataSize) where Payload : class, EventDataBase
         {
             try
             {
-                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<Payload>>(data.Span.Slice(0, dataSize));
+                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<Payload>>(data.Memory.Span.Slice(0, dataSize));
                 if (gatewayEvent is null)
                     throw new Exception("Unknown error while deserializing event data");
 

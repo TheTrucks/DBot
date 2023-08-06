@@ -22,7 +22,7 @@ namespace DBot.Processing.Processors
         private readonly AppOptions _opts;
         private readonly GlobalCommandService _globalCommands;
 
-        private delegate GatewayEventBase FunctionLink(in Memory<byte> data, in int dataSize);
+        private delegate Task<GatewayEventBase> FunctionLink(IMemoryOwner<byte> data, int dataSize);
         private readonly Dictionary<EventCodes, FunctionLink> _codeFuncLinks = new();
 
         private int? _lastSeq = null;
@@ -65,52 +65,52 @@ namespace DBot.Processing.Processors
             }
         }
 
-        public GatewayEventBase ProcessSystemEvent(in Memory<byte> data, in int dataSize, EventCodes code, in int? seq)
+        public async Task<GatewayEventBase> ProcessSystemEvent(IMemoryOwner<byte> data, int dataSize, EventCodes code, int? seq)
         {
             if (seq is not null)
                 _lastSeq = seq;
 
             if (_codeFuncLinks.ContainsKey(code))
-                return _codeFuncLinks[code](in data, in dataSize);
+                return await _codeFuncLinks[code](data, dataSize);
             else
-                return _codeFuncLinks[EventCodes.NoResponse](in data, in dataSize);
+                return await _codeFuncLinks[EventCodes.NoResponse](data, dataSize);
         }
 
-        private GatewayEventBase NoResponse(in Memory<byte> _, in int __)
+        private Task<GatewayEventBase> NoResponse(IMemoryOwner<byte> _, int __)
         {
-            return new GatewayNoRespEvent();
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent());
         }
 
-        private GatewayEventBase ProcessHeartbeatAck(in Memory<byte> _, in int __)
+        private Task<GatewayEventBase> ProcessHeartbeatAck(IMemoryOwner<byte> _, int __)
         {
-            return new GatewayNoRespEvent(EventCodes.HeartbeatAck);
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent(EventCodes.HeartbeatAck));
         }
 
-        public GatewayHeartbeatEvent CreateHeartbeat()
+        public Task<GatewayHeartbeatEvent> CreateHeartbeat()
         {
-            return new GatewayHeartbeatEvent(_lastSeq);
+            return Task.FromResult(new GatewayHeartbeatEvent(_lastSeq));
         }
-        private GatewayEventBase ProcessHeartbeat(in Memory<byte> data, in int dataSize)
+        private Task<GatewayEventBase> ProcessHeartbeat(IMemoryOwner<byte> data, int dataSize)
         {
-            return CreateHeartbeat();
-        }
-
-        private GatewayEventBase ProcessReconnect(in Memory<byte> data, in int dataSize)
-        {
-            return new GatewayNoRespEvent(EventCodes.Reconnect);
+            return Task.FromResult<GatewayEventBase>(new GatewayHeartbeatEvent(_lastSeq));
         }
 
-        private GatewayEventBase ProcessInvalidSession(in Memory<byte> data, in int dataSize)
+        private Task<GatewayEventBase> ProcessReconnect(IMemoryOwner<byte> data, int dataSize)
         {
-            return new GatewayNoRespEvent(EventCodes.InvalidSession);
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent(EventCodes.Reconnect));
         }
 
-        private GatewayEventBase ProcessReady(in Memory<byte> data, in int dataSize)
+        private Task<GatewayEventBase> ProcessInvalidSession(IMemoryOwner<byte> data, int dataSize)
         {
-            var EventData = DeserializeData<Ready>(in data, in dataSize);
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent(EventCodes.InvalidSession));
+        }
+
+        private Task<GatewayEventBase> ProcessReady(IMemoryOwner<byte> data, int dataSize)
+        {
+            var EventData = DeserializeData<Ready>(data, dataSize);
             if (EventData is null || EventData.Payload is null)
             {
-                return NoResponse(in data, in dataSize);
+                return NoResponse(data, dataSize);
             }
 
             _resumeGateway = new Uri(EventData.Payload.ResumeGateway);
@@ -120,27 +120,27 @@ namespace DBot.Processing.Processors
 
             if (GlobalCmdList.Length > 0)
             {
-                return new GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>
-                (
-                    new GlobalCommands<Interaction.AppCommandInteractionOption>(GlobalCmdList)
-                );
+                return Task.FromResult<GatewayEventBase>(
+                    new GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>(
+                        new GlobalCommands<Interaction.AppCommandInteractionOption>(GlobalCmdList)
+                    ));
             }
             else
-                return NoResponse(in data, in dataSize);
+                return NoResponse(data, dataSize);
         }
 
-        private GatewayEventBase ProcessHello(in Memory<byte> data, in int dataSize)
+        private Task<GatewayEventBase> ProcessHello(IMemoryOwner<byte> data, int dataSize)
         {
-            var EventData = DeserializeData<Hello>(in data, in dataSize);
+            var EventData = DeserializeData<Hello>(data, dataSize);
             if (EventData is null || EventData.Payload is null)
             {
                 throw new Exception("Cannot find payload in Hello event data");
             }
-            return new GatewayEvent<Hello>
-            (
-                EventCodes.Hello,
-                EventData.Payload
-            );
+            return Task.FromResult<GatewayEventBase>(
+                new GatewayEvent<Hello>(
+                    EventCodes.Hello,
+                    EventData.Payload
+                ));
         }
 
         public (Uri resumeGateway, string sessionId)? GetReconnectData(bool clear)
@@ -159,11 +159,11 @@ namespace DBot.Processing.Processors
             }
         }
 
-        private GatewayEvent<Payload>? DeserializeData<Payload>(in Memory<byte> data, in int dataSize) where Payload : class, EventDataBase
+        private GatewayEvent<Payload>? DeserializeData<Payload>(IMemoryOwner<byte> data, int dataSize) where Payload : class, EventDataBase
         {
             try
             {
-                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<Payload>>(data.Span.Slice(0, dataSize));
+                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<Payload>>(data.Memory.Span.Slice(0, dataSize));
                 if (gatewayEvent is null)
                     throw new Exception("Unknown error while deserializing event data");
 

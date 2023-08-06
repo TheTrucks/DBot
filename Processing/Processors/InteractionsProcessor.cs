@@ -2,6 +2,7 @@
 using DBot.Models.EventData;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +17,7 @@ namespace DBot.Processing.Processors
         private readonly ILogger<InteractionsProcessor> _logger;
         private readonly GlobalCommandService _globalCommands;
 
-        private delegate GatewayEventBase FunctionLink(in Memory<byte> data, in int dataSize);
+        private delegate Task<GatewayEventBase> FunctionLink(IMemoryOwner<byte> data, int dataSize);
         private readonly Dictionary<InteractionType, FunctionLink> _codeFuncLinks = new();
 
         public InteractionsProcessor(ILogger<InteractionsProcessor> logger, GlobalCommandService globalCommands)
@@ -44,37 +45,37 @@ namespace DBot.Processing.Processors
         }
 
 
-        public GatewayEventBase ProcessInteraction(in Memory<byte> data, in int dataSize)
+        public async Task<GatewayEventBase> ProcessInteraction(IMemoryOwner<byte> data, int dataSize)
         {
-            var interactionData = DeserializePayload<PingInteractionData>(in data, in dataSize);
+            var interactionData = DeserializePayload<PingInteractionData>(data, dataSize);
             if (interactionData is null)
-                return NoResponse(data, dataSize);
+                return await NoResponse(data, dataSize);
 
-            return _codeFuncLinks[interactionData.InteractionType](in data, in dataSize);
+            return await _codeFuncLinks[interactionData.InteractionType](data, dataSize);
         }
 
-        private GatewayEventBase NoResponse(in Memory<byte> _, in int __)
+        private Task<GatewayEventBase> NoResponse(IMemoryOwner<byte> _, int __)
         {
-            return new GatewayNoRespEvent();
+            return Task.FromResult<GatewayEventBase>(new GatewayNoRespEvent());
         }
 
-        private GatewayEventBase ProcessGlobalCommand(in Memory<byte> data, in int dataSize)
+        private async Task<GatewayEventBase> ProcessGlobalCommand(IMemoryOwner<byte> data, int dataSize)
         {
-            var cmdData = DeserializePayload<AppCommandInteractionOption>(in data, in dataSize);
+            var cmdData = DeserializePayload<AppCommandInteractionOption>(data, dataSize);
             if (cmdData is null)
             {
                 _logger.LogError("Unknown deserialization global command error");
-                return NoResponse(in data, in dataSize);
+                return await NoResponse(data, dataSize);
             }
 
-            return _globalCommands.CommandInvoke(cmdData);
+            return await _globalCommands.CommandInvoke(cmdData);
         }
 
-        private InteractionCreate<Payload>? DeserializePayload<Payload>(in Memory<byte> data, in int dataSize) where Payload : class, InteractionData
+        private InteractionCreate<Payload>? DeserializePayload<Payload>(IMemoryOwner<byte> data, int dataSize) where Payload : class, InteractionData
         {
             try
             {
-                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<InteractionCreate<Payload>>>(data.Span.Slice(0, dataSize));
+                var gatewayEvent = JsonSerializer.Deserialize<GatewayEvent<InteractionCreate<Payload>>>(data.Memory.Span.Slice(0, dataSize));
                 if (gatewayEvent?.Payload is null)
                     throw new Exception("Unknown error while deserializing interaction data");
 
