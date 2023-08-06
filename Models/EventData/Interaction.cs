@@ -160,7 +160,7 @@ namespace DBot.Models.EventData
 
                 for (int i = 0; i < thisOpts.Length; i++)
                 {
-                    if (!thisOpts[i].Equals(inpOpts[i]))
+                    if (!thisOpts[i].DeepEquals(inpOpts[i]))
                         return false;
                 }
 
