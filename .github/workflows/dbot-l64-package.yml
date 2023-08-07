@@ -33,7 +33,7 @@ jobs:
         jq '.AppOptions.WSSAddress="${{ env.WSS }}"' settings.json > "$tmp" && mv "$tmp" settings.json
 
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag ghcr.io/TheTrucks/dbot-linux-x64
+      run: docker build . --file Dockerfile --tag ghcr.io/thetrucks/dbot-linux-x64
 
   push:
     runs-on: ubuntu-latest
@@ -46,4 +46,4 @@ jobs:
       run: echo ${{ env.GHCR }} | docker login ghcr.io -u TheTrucks --password-stdin
 
     - name: Publish the Docker image
-      run: docker image push ghcr.io/TheTrucks/dbot-linux-x64
+      run: docker image push ghcr.io/thetrucks/dbot-linux-x64
