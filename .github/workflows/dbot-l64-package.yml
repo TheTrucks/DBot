@@ -23,9 +23,6 @@ jobs:
     - name: Rename config file
       run: mv settings.Example.json settings.json
 
-    - name: Install jq
-      run: sudo apt-install -y jq
-
     - name: Insert config values from the secret vault
       run: |
         tmp=$(mktemp)
