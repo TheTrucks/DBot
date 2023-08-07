@@ -36,9 +36,9 @@ namespace DBot.Services
 
         public async Task ConnectAsync(bool forceReconnect, (Uri resumeGateway, string sessionId)? reconnectData, CancellationToken _token)
         {
-            if (CWS.State is WebSocketState.Open)
+            if (CWS.State is not WebSocketState.Closed)
             {
-                if (forceReconnect)
+                if (forceReconnect || CWS.State is not WebSocketState.Open)
                 {
                     _logger.LogInformation("Closing present WSS connection");
                     await CWS.CloseAsync(WebSocketCloseStatus.NormalClosure, null, _token);
@@ -54,12 +54,16 @@ namespace DBot.Services
                 if (WSSAddress is null)
                     throw new Exception("WSS address wasn't resolved");
                 _logger.LogInformation("Opening WSS connection");
+                CWS.Dispose();
+                CWS = new ClientWebSocket();
                 await CWS.ConnectAsync(new Uri(WSSAddress), _token);
                 _logger.LogInformation("WSS connected");
             }
             else
             {
                 _logger.LogTrace("Reconnection data is present. Address {addr}, session {session}", reconnectData.Value.resumeGateway, reconnectData.Value.sessionId);
+                CWS.Dispose();
+                CWS = new ClientWebSocket();
                 await CWS.ConnectAsync(reconnectData.Value.resumeGateway, _token);
                 _logger.LogInformation("WSS reconnected");
             }
@@ -107,7 +111,7 @@ namespace DBot.Services
             if (!_disposed)
             {
                 _disposed = true;
-                if (CWS.State is WebSocketState.Open)
+                if (CWS.State is not WebSocketState.Closed)
                 {
                     CWS.CloseAsync(WebSocketCloseStatus.NormalClosure, "Service stop", CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
                     CWS.Dispose();

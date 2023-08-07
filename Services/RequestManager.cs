@@ -22,6 +22,7 @@ namespace DBot.Services
         private Task? HeartbeatWorker;
         private Task? BackgroundWorker;
         private CancellationTokenSource _cts = new CancellationTokenSource();
+        private bool _disposed = false;
 
         public RequestManager(ILogger<RequestManager> logger, ConnectionManager connectionManager, EventProcessorManager proc, SenderService sender) 
         {
@@ -130,12 +131,20 @@ namespace DBot.Services
 
         public void Dispose()
         {
-            if (HeartbeatWorker is not null && !HeartbeatWorker.IsCompleted)
-                HeartbeatWorker.Dispose();
+            if (!_disposed)
+            {
+                _disposed = true;
 
-            _heartbeatTimer?.Dispose();
+                _cts.Cancel();
+                _cts.Dispose();
 
-            _connectionManager.Dispose();
+                if (HeartbeatWorker is not null && !HeartbeatWorker.IsCompleted)
+                    HeartbeatWorker.Dispose();
+
+                _heartbeatTimer?.Dispose();
+
+                _connectionManager.Dispose();
+            }
         }
     }
 }
