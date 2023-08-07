@@ -38,10 +38,13 @@ namespace DBot.Services
         {
             if (CWS.State is not WebSocketState.Closed)
             {
-                if (forceReconnect || CWS.State is not WebSocketState.Open)
+                if (CWS.State is WebSocketState.CloseReceived)
                 {
                     _logger.LogInformation("Closing present WSS connection");
                     await CWS.CloseAsync(WebSocketCloseStatus.NormalClosure, null, _token);
+                }
+                if (forceReconnect || CWS.State is not WebSocketState.Open)
+                {
                     CWS.Dispose();
                     CWS = new ClientWebSocket();
                 }
@@ -98,6 +101,7 @@ namespace DBot.Services
                     _logger.LogTrace("Data received: {size}KB", (double)result.Count / 1024);
                 }
             }
+            catch (TaskCanceledException) { }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Data receive error with memSize: {size}", memSize);
@@ -111,11 +115,13 @@ namespace DBot.Services
             if (!_disposed)
             {
                 _disposed = true;
-                if (CWS.State is not WebSocketState.Closed)
-                {
-                    CWS.CloseAsync(WebSocketCloseStatus.NormalClosure, "Service stop", CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
-                    CWS.Dispose();
-                }
+                if (CWS.State is WebSocketState.Open)
+                    CWS.CloseAsync(WebSocketCloseStatus.NormalClosure, "Service stop", CancellationToken.None)
+                        .ConfigureAwait(false)
+                        .GetAwaiter()
+                        .GetResult();
+
+                CWS.Dispose();
             }
         }
     }
