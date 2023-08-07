@@ -33,7 +33,10 @@ jobs:
         jq '.AppOptions.WSSAddress="${{ env.WSS }}"' settings.json > "$tmp" && mv "$tmp" settings.json
 
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag ghcr.io/thetrucks/dbot-linux-x64
+      run: docker build . --file Dockerfile --tag dbot-linux-x64:latest
+
+    - name: Tag the Docker image
+      run: docker tag dbot-linux-x64:latest ghcr.io/thetrucks/dbot-linux-x64
 
   push:
     runs-on: ubuntu-latest
