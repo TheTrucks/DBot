@@ -16,6 +16,7 @@ jobs:
       CATSURL: ${{ secrets.HTTPCATSBASEURL }}
       TOKEN: ${{ secrets.TOKEN }}
       WSS: ${{ secrets.WSSADDRESS }}
+      GHCR: ${{ secrets.GHCR_PASS }}
 
     steps:
     - uses: actions/checkout@v3
@@ -36,17 +37,11 @@ jobs:
       run: docker build . --file Dockerfile --tag dbot-linux-x64:latest
 
     - name: Tag the Docker image
-      run: docker tag dbot-linux-x64:latest ghcr.io/thetrucks/dbot-linux-x64
+      run: docker tag dbot-linux-x64:latest ghcr.io/thetrucks/dbot-linux-x64:latest
 
-  push:
-    runs-on: ubuntu-latest
-    environment: SetupEnv
-    env:
-      GHCR: ${{ secrets.GHCR_PASS }}
-
-    steps:
     - name: Login to the GHCR
       run: echo ${{ env.GHCR }} | docker login ghcr.io -u TheTrucks --password-stdin
 
     - name: Publish the Docker image
-      run: docker image push ghcr.io/thetrucks/dbot-linux-x64
+      run: docker image push ghcr.io/thetrucks/dbot-linux-x64:latest
+      
