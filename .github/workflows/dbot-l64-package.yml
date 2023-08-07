@@ -1,0 +1,52 @@
+name: Docker Image CI for linux x64
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: SetupEnv
+    env:
+      BURL: ${{ secrets.BASEURL }}
+      APPID: ${{ secrets.APPID }}
+      CATSURL: ${{ secrets.HTTPCATSBASEURL }}
+      TOKEN: ${{ secrets.TOKEN }}
+      WSS: ${{ secrets.WSSADDRESS }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Rename config file
+      run: mv settings.Example.json settings.json
+
+    - name: Install jq
+      run: sudo apt-install -y jq
+
+    - name: Insert config values from the secret vault
+      run: |
+        tmp=$(mktemp)
+        jq '.AppOptions.BaseURL="${{ env.BURL }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+        jq '.AppOptions.AppID="${{ env.APPID }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+        jq '.AppOptions.HttpCatsBaseURL="${{ env.CATSURL }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+        jq '.ProcessingOptions.Token="${{ env.TOKEN }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+        jq '.AppOptions.WSSAddress="${{ env.WSS }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag ghcr.io/TheTrucks/dbot-linux-x64
+
+  push:
+    runs-on: ubuntu-latest
+    environment: SetupEnv
+    env:
+      GHCR: ${{ secrets.GHCR_PASS }}
+
+    steps:
+    - name: Login to the GHCR
+      run: echo ${{ env.GHCR }} | docker login ghcr.io -u TheTrucks --password-stdin
+
+    - name: Publish the Docker image
+      run: docker image push ghcr.io/TheTrucks/dbot-linux-x64
