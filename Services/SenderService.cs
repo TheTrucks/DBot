@@ -84,7 +84,11 @@ namespace DBot.Services
                     _httpClient.BaseAddress = new Uri(_opts.BaseURL);
 
                     SendMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", BotToken);
-                    SendMessage.Content = JsonContent.Create(Data);
+
+                    if (Data.WholeModel)
+                        SendMessage.Content = JsonContent.Create(Data);
+                    else
+                        SendMessage.Content = JsonContent.Create(Data.Data);
 
                     var resp = await _httpClient.SendAsync(SendMessage);
                     if (!resp.IsSuccessStatusCode)

@@ -17,13 +17,16 @@ namespace DBot.Models.HttpModels
         }
 
         [JsonIgnore]
-        public HttpMethod Method { get; init; }
+        public HttpMethod Method { get; private set; }
 
         [JsonIgnore]
-        private string Uri { get; init; }
+        private string Uri { get; set; }
 
         [JsonIgnore]
-        private byte UriParamsCount { get; init; }
+        private byte UriParamsCount { get; set; }
+
+        [JsonIgnore]
+        public bool WholeModel { get; private set; } = true;
 
         public string GetUri(params string[] uriParams)
         {
@@ -33,6 +36,14 @@ namespace DBot.Models.HttpModels
                 throw new Exception("Invalid amout of parameters to form a URI");
 
             return string.Format(Uri, uriParams);
+        }
+
+        public void SetUri(HttpMethod method, string uri, byte uriCount, bool wholeModel)
+        {
+            Method = method;
+            Uri = uri;
+            UriParamsCount = uriCount;
+            WholeModel = wholeModel;
         }
     }
 }

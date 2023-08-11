@@ -28,16 +28,11 @@ namespace DBot.Processing
         private delegate Task<GatewayEventBase> FunctionLink(InteractionCreate<AppCommandInteractionOption> command);
         private readonly Dictionary<string, FunctionLink> _nameFuncLinks = new();
 
-        private readonly static string[] _appeals =
+        private readonly static string[] _errAnswers =
         {
-            "buddy",
-            "pal",
-            "dude",
-            "amigo",
-            "comrade",
-            "bro",
-            "mate",
-            "friend"
+            "А? Не понял концепции чё-то.",
+            "Не услышал, можешь повторить через донат?",
+            "Что-то чудное совсем мелешь, не понимаю."
         };
 
         public GlobalCommandService(ILogger<GlobalCommandService> logger, IOptions<AppOptions> opts, IHttpClientFactory httpFactory)
@@ -104,15 +99,15 @@ namespace DBot.Processing
             if (command.Data is null)
             {
                 _logger.LogError("No command data found in message {msg_id}", command.Id);
-                return ErrorResponse(command, "Looks like the command name you sent wasn't correctly received");
+                return ErrorResponse(command, "Полная белиберда, ничего не ясно");
             }
 
             if (_nameFuncLinks.TryGetValue(command.Data.Name, out var function))
                 return await function(command);
 
             _logger.LogError("Could not recognize global command");
-            var appeal = Random.Shared.Next(0, _appeals.Length);
-            return ErrorResponse(command, $"Sorry {_appeals[appeal]}, but the command named {command.Data.Name} isn't registered on the backend");
+            var errAns = Random.Shared.Next(0, _errAnswers.Length);
+            return ErrorResponse(command, $"{_errAnswers[errAns]} Таких слов, как {command.Data.Name} в жизни не слыхал");
         }
 
         private GatewayEventBase ErrorResponse(InteractionCreate<AppCommandInteractionOption> command, string message)
@@ -212,8 +207,7 @@ namespace DBot.Processing
             else
             {
                 _logger.LogError("HttpCat command data is not present in request");
-                var appeal = Random.Shared.Next(0, _appeals.Length);
-                return ErrorResponse(command, $"Sorry, {_appeals[appeal]}, but looks like your request is invalid");
+                return ErrorResponse(command, "Кажется, как-то неправильно я просьбу расслышал, очень невнятно всё");
             }
         }
     }
