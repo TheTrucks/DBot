@@ -241,6 +241,13 @@ namespace DBot.Models
         {
             Payload = payload;
         }
+        /// <summary>
+        /// Hacky way to make event being processed differently
+        /// </summary>
+        public GatewayDispatch(PayloadType payload, GatewayCode.OpCodes opcode) : base((int)opcode, null, null)
+        {
+            Payload = payload;
+        }
 
         public PayloadType Payload { get; set; }
     }

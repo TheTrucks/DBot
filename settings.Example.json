@@ -7,5 +7,8 @@
   },
   "ProcessingOptions": {
     "Token": "discord-bot-token"
+  },
+  "HandlerOptions": {
+    "ThreadFactor": 512
   }
 }

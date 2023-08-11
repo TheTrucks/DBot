@@ -26,7 +26,7 @@ namespace DBot
                     .ClearProviders()
                     .AddConsole()
                     .AddFilter("Microsoft.Extensions.Http", LogLevel.Error)
-                    .SetMinimumLevel(LogLevel.Trace));
+                    .SetMinimumLevel(LogLevel.Information));
             var host = builder.Build();
 
             await host.RunAsync();
@@ -38,6 +38,7 @@ namespace DBot
             services.RemoveAll<IHttpMessageHandlerBuilderFilter>(); // remove annoying http client logging
             services.Configure<AppOptions>(config.GetRequiredSection("AppOptions"));
             services.Configure<EventProcessorOptions>(config.GetRequiredSection("ProcessingOptions"));
+            services.Configure<HandlerOptions>(config.GetRequiredSection("HandlerOptions"));
 
             services.AddSingleton<RequestManager>();
             services.AddSingleton<ConnectionManager>();

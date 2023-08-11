@@ -32,11 +32,6 @@ namespace DBot.Processing
             _dispproc = dispproc;
         }
 
-        public (Uri resumeGateway, string sessionId)? GetReconnectData(bool clear)
-        {
-            return _sysproc.GetReconnectData(clear);
-        }
-
         public async Task<GatewayEventBase> ProcessEvent(IMemoryOwner<byte> data, int dataSize)
         {
             _logger.LogDebug("Processing an event");
@@ -48,7 +43,7 @@ namespace DBot.Processing
             if (EventData.OpCode == (int)EventCodes.Dispatch)
                 return await ProcessDispatch(data, dataSize, EventData.EventName);
             else
-                return await _sysproc.ProcessSystemEvent(data, dataSize, GatewayCode.GetOpCode(EventData.OpCode), EventData.SeqNumber);
+                return await _sysproc.ProcessSystemEvent(data, dataSize, GatewayCode.GetOpCode(EventData.OpCode));
         }
 
         private async Task<GatewayEventBase> ProcessDispatch(IMemoryOwner<byte> data, int dataSize, string? eventName)
@@ -59,14 +54,9 @@ namespace DBot.Processing
             var dispCode = GatewayCode.GetDispatch(eventName);
 
             if (dispCode == DispatchCodes.READY)
-                return await _sysproc.ProcessSystemEvent(data, dataSize, EventCodes.Ready, null);
+                return await _sysproc.ProcessSystemEvent(data, dataSize, EventCodes.Ready);
 
             return await _dispproc.ProcessDispatchEvent(data, dataSize, dispCode);
-        }
-
-        public async Task<GatewayHeartbeatEvent> CreateHeartbeat()
-        {
-            return await _sysproc.CreateHeartbeat();
         }
 
         public GatewayEventBase CreateIdentity()

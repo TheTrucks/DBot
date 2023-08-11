@@ -38,7 +38,7 @@ namespace DBot.Services
 
             _codeFuncLinks.Add(typeof(GatewayDispatch<Message>), SendReplyMessage);
             _codeFuncLinks.Add(typeof(GatewayDispatch<InteractionResponse<InteractionMessage>>), SendInteractionResp);
-            _codeFuncLinks.Add(typeof(GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>), UpdateGlobalCommands);
+            _codeFuncLinks.Add(typeof(GatewayDispatch<ReadyInfo<Interaction.AppCommandInteractionOption>>), UpdateGlobalCommands);
             _codeFuncLinks.Add(typeof(GatewayDispatch<PlainCommand>), SendPlainMessage);
         }
 
@@ -120,9 +120,9 @@ namespace DBot.Services
 
         private async Task UpdateGlobalCommands(GatewayEventBase DataWrapped, CancellationToken _token)
         {
-            var Data = DataWrapped as GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>;
+            var Data = DataWrapped as GatewayDispatch<ReadyInfo<Interaction.AppCommandInteractionOption>>;
             if (Data is null)
-                Data = new GatewayDispatch<GlobalCommands<Interaction.AppCommandInteractionOption>>(new GlobalCommands<Interaction.AppCommandInteractionOption>(Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>()));
+                Data = new GatewayDispatch<ReadyInfo<Interaction.AppCommandInteractionOption>>(new ReadyInfo<Interaction.AppCommandInteractionOption>(Array.Empty<GlobalCommand<Interaction.AppCommandInteractionOption>>()));
 
             var currentCommands = await RetrieveCurrentCommands(_token);
 

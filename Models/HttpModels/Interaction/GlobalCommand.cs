@@ -8,14 +8,16 @@ using static DBot.Models.EventData.Interaction;
 
 namespace DBot.Models.HttpModels.Interaction
 {
-    internal class GlobalCommands<InteractionData> : HttpModelBase
+    internal class ReadyInfo<InteractionData> : HttpModelBase
     {
-        public GlobalCommands(GlobalCommand<InteractionData>[] payload) : base(HttpMethod.Put, "applications/{0}/commands", 1)
+        public ReadyInfo(GlobalCommand<InteractionData>[] payload) : base(HttpMethod.Put, "applications/{0}/commands", 1)
         {
             Payload = payload;
         }
 
         public GlobalCommand<InteractionData>[] Payload { get; set; }
+        public Uri? ResumeGateway { get; set; }
+        public string? SessionId { get; set; }
     }
 
     internal class GlobalCommand<InteractionData>

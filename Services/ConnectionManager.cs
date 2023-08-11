@@ -34,7 +34,7 @@ namespace DBot.Services
             WSSAddress = _opts.WSSAddress;
         }
 
-        public async Task ConnectAsync(bool forceReconnect, (Uri resumeGateway, string sessionId)? reconnectData, CancellationToken _token)
+        public async Task ConnectAsync(bool forceReconnect, Uri? resumeGateway, string? sessionId, CancellationToken _token)
         {
             if (CWS.State is not WebSocketState.Closed)
             {
@@ -52,7 +52,7 @@ namespace DBot.Services
                     return;
             }
 
-            if (reconnectData is null)
+            if (resumeGateway is null || sessionId is null)
             {
                 if (WSSAddress is null)
                     throw new Exception("WSS address wasn't resolved");
@@ -64,15 +64,15 @@ namespace DBot.Services
             }
             else
             {
-                _logger.LogTrace("Reconnection data is present. Address {addr}, session {session}", reconnectData.Value.resumeGateway, reconnectData.Value.sessionId);
+                _logger.LogTrace("Reconnection data is present. Address {addr}, session {session}", resumeGateway, sessionId);
                 CWS.Dispose();
                 CWS = new ClientWebSocket();
-                await CWS.ConnectAsync(reconnectData.Value.resumeGateway, _token);
+                await CWS.ConnectAsync(resumeGateway, _token);
                 _logger.LogInformation("WSS reconnected");
             }
         }
 
-        public async Task<(IMemoryOwner<byte> Data, int DataSize)> ReceiveEventData(CancellationToken _token)
+        public async Task<Tuple<IMemoryOwner<byte>, int>> ReceiveEventData(CancellationToken _token)
         {
             int DataSize = 0;
             int memSize = 4096;
@@ -107,7 +107,7 @@ namespace DBot.Services
                 _logger.LogError(ex, "Data receive error with memSize: {size}", memSize);
             }
 
-            return (EventData, DataSize);
+            return Tuple.Create(EventData, DataSize);
         }
 
         public void Dispose()
