@@ -1,4 +1,5 @@
-﻿using DBot.Models.Options;
+﻿using DBot.Addons;
+using DBot.Models.Options;
 using DBot.Processing;
 using DBot.Processing.Processors;
 using DBot.Services;
@@ -48,6 +49,8 @@ namespace DBot
             services.AddSingleton<InteractionsProcessor>();
             services.AddSingleton<GlobalCommandService>();
             services.AddSingleton<SenderService>();
+
+            services.RegisterAddons(config);
 
             services.AddHostedService<AppService>();
         }

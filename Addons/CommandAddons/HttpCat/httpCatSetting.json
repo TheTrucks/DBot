@@ -1,0 +1,6 @@
+{
+  "AddonSettings": {
+    "BaseAddress": "https://http.cat/",
+    "Suffix": ".jpg"
+  }
+}

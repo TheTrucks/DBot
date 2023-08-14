@@ -2,8 +2,7 @@
   "AppOptions": {
     "BaseURL": "https://discord.com/api/v10/",
     "WSSAddress": "wss://gateway.discord.gg",
-    "AppID": "123454321",
-    "HttpCatsBaseURL": "https://http.cat/"
+    "AppID": "123454321"
   },
   "ProcessingOptions": {
     "Token": "discord-bot-token"

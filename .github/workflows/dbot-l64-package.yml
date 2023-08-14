@@ -29,9 +29,10 @@ jobs:
         tmp=$(mktemp)
         jq '.AppOptions.BaseURL="${{ env.BURL }}"' settings.json > "$tmp" && mv "$tmp" settings.json
         jq '.AppOptions.AppID="${{ env.APPID }}"' settings.json > "$tmp" && mv "$tmp" settings.json
-        jq '.AppOptions.HttpCatsBaseURL="${{ env.CATSURL }}"' settings.json > "$tmp" && mv "$tmp" settings.json
-        jq '.ProcessingOptions.Token="${{ env.TOKEN }}"' settings.json > "$tmp" && mv "$tmp" settings.json
         jq '.AppOptions.WSSAddress="${{ env.WSS }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+        jq '.ProcessingOptions.Token="${{ env.TOKEN }}"' settings.json > "$tmp" && mv "$tmp" settings.json
+
+        jq '.AddonSettings.BaseAddress="${{ env.CATSURL }}"' Addons/CommandAddons/HttpCat/httpCatSetting.json > "$tmp" && mv "$tmp" Addons/CommandAddons/HttpCat/httpCatSetting.json
 
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag dbot-linux-x64:latest

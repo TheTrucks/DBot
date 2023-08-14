@@ -1,0 +1,7 @@
+{
+  "AddonSettings": {
+    "BaseAddress": "https://api.openai.com/v1/",
+    "Token": "thetoken",
+    "Model": "modelname"
+  }
+}
