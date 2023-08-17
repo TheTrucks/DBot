@@ -1,4 +1,5 @@
 ﻿using DBot.Addons.CommandAddons.HttpCat;
+using DBot.Addons.CommandAddons.OpenAI;
 using DBot.Models;
 using DBot.Models.HttpModels;
 using DBot.Models.HttpModels.Channel;
@@ -21,6 +22,7 @@ namespace DBot.Processing
     {
         private readonly ILogger<GlobalCommandService> _logger;
         private readonly HttpCatAddon _catAddon;
+        private readonly OpenAIAddon _gipityAddon;
 
         private readonly GlobalCommand<AppCommandInteractionOption>[] CommandList;
 
@@ -34,10 +36,11 @@ namespace DBot.Processing
             "Что-то чудное совсем мелешь, не понимаю."
         };
 
-        public GlobalCommandService(ILogger<GlobalCommandService> logger, HttpCatAddon catAddon)
+        public GlobalCommandService(ILogger<GlobalCommandService> logger, HttpCatAddon catAddon, OpenAIAddon gipityAddon)
         {
             _logger = logger;
             _catAddon = catAddon;
+            _gipityAddon = gipityAddon;
 
             CommandList = new GlobalCommand<AppCommandInteractionOption>[]
             {
@@ -80,11 +83,33 @@ namespace DBot.Processing
                     "error",
                     "вызывает ошибку в консоли",
                     null
-                    )
+                    ),
+                new GlobalCommand<AppCommandInteractionOption>(
+                    "gipity",
+                    "Шлёт запрос в джИпити",
+                    new AppCommandInteractionOption[]
+                    {
+                        new AppCommandInteractionOption(
+                            "request",
+                            AppCommandInteractionOption.AppCommandOptionType.STRING,
+                            "Непосредственно запрос к джИпити",
+                            null,
+                            true,
+                            null
+                        )
+                    }
+                ),
+                new GlobalCommand<AppCommandInteractionOption>(
+                    "gipity-forget",
+                    "Очищает контекст диалога и завершает ожидаемые ответы",
+                    null
+                )
             };
 
             _nameFuncLinks.Add("ping", PingInvoke);
             _nameFuncLinks.Add("http-cat", HttpCatInvoke);
+            _nameFuncLinks.Add("gipity", GipityInvoke);
+            _nameFuncLinks.Add("gipity-forget", GipityForget);
         }
 
         public GlobalCommand<AppCommandInteractionOption>[] GetCommandsList()
@@ -156,6 +181,32 @@ namespace DBot.Processing
             catch (Exception ex)
             {
                 return ErrorResponse(command, ex.Message);
+            }
+        }
+
+        private async Task<GatewayEventBase> GipityInvoke(InteractionCreate<AppCommandInteractionOption> command)
+        {
+            try
+            {
+                return await _gipityAddon.Invoke(command);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "There was an error trying to make a gipity request");
+                return ErrorResponse(command, "У джИпити произошла ЧУДОВИЩНАЯ ошибка");
+            }
+        }
+
+        private Task<GatewayEventBase> GipityForget(InteractionCreate<AppCommandInteractionOption> command)
+        {
+            try
+            {
+                return Task.FromResult(_gipityAddon.Forget(command));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "There was an error trying to forget a gipity request");
+                return Task.FromResult(ErrorResponse(command, "У джИпити произошла ЧУДОВИЩНАЯ ошибка"));
             }
         }
     }

@@ -1,4 +1,5 @@
 ﻿using DBot.Addons.CommandAddons.HttpCat;
+using DBot.Addons.CommandAddons.OpenAI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -14,6 +15,7 @@ namespace DBot.Addons
         public static void RegisterAddons(this IServiceCollection services, IConfiguration config)
         {
             HttpCatAddon.ConfigureAddon(services, config);
+            OpenAIAddon.ConfigureAddon(services, config);
         }
     }
 }

@@ -97,7 +97,7 @@ namespace DBot.Processing.Processors
                         InteractionResponse<InteractionMessage>.CallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
                         new InteractionMessage(
                             "Подожди секундочку, дедушке надо подумать",
-                            InteractionFlags.EPHEMERAL
+                            null
                         ),
                         interactionId,
                         interactionToken

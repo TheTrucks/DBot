@@ -36,7 +36,6 @@ namespace DBot
         private static void ConfigureServices(IServiceCollection services, IConfiguration config)
         {
             services.AddHttpClient("SharedHttpClient");
-            services.RemoveAll<IHttpMessageHandlerBuilderFilter>(); // remove annoying http client logging
             services.Configure<AppOptions>(config.GetRequiredSection("AppOptions"));
             services.Configure<EventProcessorOptions>(config.GetRequiredSection("ProcessingOptions"));
             services.Configure<HandlerOptions>(config.GetRequiredSection("HandlerOptions"));
@@ -52,6 +51,7 @@ namespace DBot
 
             services.RegisterAddons(config);
 
+            services.RemoveAll<IHttpMessageHandlerBuilderFilter>(); // remove annoying http client logging
             services.AddHostedService<AppService>();
         }
     }

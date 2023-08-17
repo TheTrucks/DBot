@@ -11,5 +11,6 @@ namespace DBot.Addons.CommandAddons.OpenAI
         public required string BaseAddress { get; set; }
         public required string Token { get; set; }
         public required string Model { get; set; }
+        public string? Precontext { get; set; }
     }
 }
